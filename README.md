@@ -1,2 +1,2 @@
-webGold (WRIO App)
+webGold ([WRIO](wr.io) App)
 ==================
