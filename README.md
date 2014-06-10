@@ -1,2 +1,2 @@
-webGold ([WRIO](http://wr.io) App)
+webGold - [WRIO](http://wr.io) App
 =
