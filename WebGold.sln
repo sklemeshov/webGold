@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "webGold.Repository", "WebGold.Repository\webGold.Repository.csproj", "{7A22BE74-59DF-44FF-8DDD-F6315625A0D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "webGold.Services", "WebGold.Services\webGold.Services.csproj", "{FF0EAB4C-C66D-44FA-AAFA-08DF14D403EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "webGold.Business", "WebGold.Business\webGold.Business.csproj", "{9C0D8001-A369-4EAF-9E3C-18EF988B6081}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A22BE74-59DF-44FF-8DDD-F6315625A0D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A22BE74-59DF-44FF-8DDD-F6315625A0D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A22BE74-59DF-44FF-8DDD-F6315625A0D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A22BE74-59DF-44FF-8DDD-F6315625A0D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF0EAB4C-C66D-44FA-AAFA-08DF14D403EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF0EAB4C-C66D-44FA-AAFA-08DF14D403EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF0EAB4C-C66D-44FA-AAFA-08DF14D403EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF0EAB4C-C66D-44FA-AAFA-08DF14D403EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C0D8001-A369-4EAF-9E3C-18EF988B6081}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C0D8001-A369-4EAF-9E3C-18EF988B6081}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C0D8001-A369-4EAF-9E3C-18EF988B6081}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C0D8001-A369-4EAF-9E3C-18EF988B6081}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
