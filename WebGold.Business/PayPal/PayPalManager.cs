@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Text;
 using System.Web;
 using PayPal.PayPalAPIInterfaceService;
 using PayPal.PayPalAPIInterfaceService.Model;
@@ -27,122 +26,14 @@ namespace webGold.Business.PayPal
            _userEmail = userEmail;
            _userId = userId;
        }
-
-       public PayPalResponseResultModel SendRequest(HttpContext context, string amount)
+       public static PayPalResponseResultModel PayPalResponseResult(string token, string payerId)
        {
-           double cAmount = amount.ParseToDouble();
            var model = new PayPalResponseResultModel();
-           var sumAmountInLastDay = Repository.GetAmmountPayPalPorLastDay(_userId);
-           if ((sumAmountInLastDay + cAmount) > 1000)
-           {
-               model.IsSucces = false;
-               return model;
-           }
-           var request = new SetExpressCheckoutRequestType();
-           this.PopulateRequest(request, cAmount);
-           var wrapper = new SetExpressCheckoutReq {SetExpressCheckoutRequest = request};
-           var service = new PayPalAPIInterfaceServiceService();
-           var setECResponse = service.SetExpressCheckout(wrapper);
-           context.Items.Add("paymentDetails", request.SetExpressCheckoutRequestDetails.PaymentDetails);
-           var keyResponseParameters = new Dictionary<string, string> {{"API Status", setECResponse.Ack.ToString()}};
-           if (setECResponse.Ack.Equals(AckCodeType.FAILURE) ||
-               (setECResponse.Errors != null && setECResponse.Errors.Count > 0))
-           {
-               context.Items.Add("Response_error", setECResponse.Errors);
-               context.Items.Add("Response_redirectURL", null);
-           }
-           else
-           {
-               context.Items.Add("Response_error", null);
-               keyResponseParameters.Add("EC token", setECResponse.Token);
-               context.Items.Add("Response_redirectURL", string.Concat(
-                   ConfigurationManager.AppSettings["PAYPAL_REDIRECT_URL"],
-                   "_express-checkout&token=", setECResponse.Token));
-           }
-           context.Items.Add("Response_keyResponseObject", keyResponseParameters);
-           context.Items.Add("Response_apiName", "SetExpressCheckout");
-           context.Items.Add("Response_requestPayload", service.getLastRequest());
-           context.Items.Add("Response_responsePayload", service.getLastResponse());
-          
-           if (setECResponse.Ack.Equals(AckCodeType.SUCCESS))
-           {
-               var entity = new Repository.Entity.PayPal
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    UserId = _userId,
-                                    State = "pending",
-                                    UpdateTime = DateTime.UtcNow,
-                                    CreateTime = DateTime.UtcNow,
-                                    Amount = Converter.ParseToDouble(amount),
-                                    CurrencyCode = "USD",
-                                    InternalPaymentId = setECResponse.Token,
-                                    Intent = "SALE",
-                                    PayerEmail = _userEmail
-                                };
-
-               Repository.CreatePayPalTransaction(entity);
-             // https://www.sandbox.paypal.com/webscr?cmd=_express-checkout&token=
-               var sandBoxUrl = ConfigurationManager.AppSettings["PAYPAL_SANDBOX_URL"];
-               model.Url = string.Format("{0}{1}",sandBoxUrl,setECResponse.Token);
-               model.IsSucces = true;
-           }
-           else
-           {
-               var errors = (List<ErrorType>)context.Items["Response_error"];
-               var errorText = new StringBuilder();
-               foreach (ErrorType errorType in errors)
-               {
-                   errorText.AppendFormat("{0} {1};", errorType.ErrorCode, errorType.ShortMessage);
-               }
-               model.Errors = errorText.ToString();
-               model.IsSucces = false;
-           }
-           return model;
-       }
-
-       private void PopulateRequest(SetExpressCheckoutRequestType request, double itemTotal)
-       {
-           string rUrl = ConfigurationManager.AppSettings["HOSTING_ENDPOINT"];
-           string returnUrl = string.Empty;
-           string ipnNotificationUrl = string.Empty;
-           string requestUrl = rUrl;
-           var uriBuilder = new UriBuilder(requestUrl) {Path = "/PayPal/PayPalResponse"};
-           returnUrl = uriBuilder.Uri.ToString();
-           ipnNotificationUrl = uriBuilder.Uri.ToString();
-           var setExpressCheckoutRequestDetails = new SetExpressCheckoutRequestDetailsType();
-           if (!string.IsNullOrEmpty(returnUrl))
-           {
-               setExpressCheckoutRequestDetails.ReturnURL = returnUrl;
-           }
-           if (!string.IsNullOrEmpty(_userEmail))
-           {
-               setExpressCheckoutRequestDetails.BuyerEmail = _userEmail;
-           }
-           var paymentDetails = new PaymentDetailsType();
-           setExpressCheckoutRequestDetails.PaymentDetails.Add(paymentDetails);
-           double orderTotal = 0.0;
-           var currency = (CurrencyCodeType)
-               Enum.Parse(typeof(CurrencyCodeType), "USD");
-           const string orderDescription = "Payment to webRunes";
-           if (!string.IsNullOrEmpty(orderDescription))
-           {
-               paymentDetails.OrderDescription = orderDescription;
-           }
-           paymentDetails.PaymentAction = (PaymentActionCodeType)
-               Enum.Parse(typeof(PaymentActionCodeType), "SALE");
-           orderTotal += itemTotal;
-           paymentDetails.ItemTotal = new BasicAmountType(currency, itemTotal.ToString());
-           paymentDetails.OrderTotal = new BasicAmountType(currency, orderTotal.ToString());
-           paymentDetails.NotifyURL = ipnNotificationUrl.Trim();
-           request.SetExpressCheckoutRequestDetails = setExpressCheckoutRequestDetails;
-       }
-
-       public static string PayPalResponseResult(string token, string payerId)
-       {
            var repository = new PaymentRepository();
            var request = new GetExpressCheckoutDetailsRequestType {Token = token};
            var wrapper = new GetExpressCheckoutDetailsReq {GetExpressCheckoutDetailsRequest = request};
            var service = new PayPalAPIInterfaceServiceService();
+
            GetExpressCheckoutDetailsResponseType ecResponse = service.GetExpressCheckoutDetails(wrapper);
            var doExpressCheckoutRequest = new DoExpressCheckoutPaymentRequestType();
            var requestDetails = new DoExpressCheckoutPaymentRequestDetailsType();
@@ -150,8 +41,7 @@ namespace webGold.Business.PayPal
            requestDetails.PaymentDetails = ecResponse.GetExpressCheckoutDetailsResponseDetails.PaymentDetails;
            requestDetails.Token = token;
            requestDetails.PayerID = payerId;
-           requestDetails.PaymentAction = (PaymentActionCodeType)
-               Enum.Parse(typeof(PaymentActionCodeType), "SALE");
+           requestDetails.PaymentAction = PaymentActionCodeType.SALE;             
            var doCheckoutWrapper = new DoExpressCheckoutPaymentReq
                                    {
                                        DoExpressCheckoutPaymentRequest =
@@ -164,13 +54,15 @@ namespace webGold.Business.PayPal
            Repository.Entity.PayPal payPal = repository.GetPayPalBy(token);
            if (payPal == null)
            {
-               return "PayPal response fail !!!";
+               model.Errors = "Current transaction is not found.";
+               return model;
            }
            var amount = Converter.ParseToDouble(paymentInfoType.GrossAmount.value);
            var payPalEntity = payPal as Repository.Entity.PayPal;
            if (amount != payPalEntity.Amount)
            {
-               return "<b>Not enough money in the account!</b>";
+               model.Errors = "Not enough money in the account.";
+               return model;
            }
            var entity = new Repository.Entity.PayPal();
            entity.Id = payPalEntity.Id;
@@ -184,15 +76,14 @@ namespace webGold.Business.PayPal
            entity.CurrencyCode = payPalEntity.CurrencyCode;
 
            Repository.Entity.PayPal paypalEntity = repository.GetPayPalBy(entity.InternalPaymentId);
-           bool needToDeposit = false;
-
-           needToDeposit = paypalEntity.State.Equals("pending", StringComparison.InvariantCultureIgnoreCase) && isPaid;
+           var needToDeposit = paypalEntity.State.Equals(StateType.PENDING.ToString()) && isPaid;
            repository.UpdatePayPal(entity);
            if (needToDeposit)
            {
                Deposit(entity, repository);
            }
-           return payPalStatus.ToString().ToLower();
+           model.IsSucces = true;
+           return model;
        }
 
        public static void Deposit(Repository.Entity.PayPal entity, IPaymentRepository repository)
@@ -281,10 +172,107 @@ namespace webGold.Business.PayPal
        {
            var repository = new PaymentRepository();
            var tModel = repository.GetLastTransaction(userId);
-           var accountBalanceModel = new AccountBalanceModel();
-           accountBalanceModel.Usd = tModel.Amount;
-           accountBalanceModel.Gs = (Int64) new GoldenStandartConverter().ConvertFromUsdToGld(tModel.Amount);
+           var accountBalanceModel = new AccountBalanceModel(tModel.Amount);
+           //accountBalanceModel.Usd = tModel.Amount;
+           //accountBalanceModel.Gs = (Int64) new GoldenStandartConverter().ConvertFromUsdToGld(tModel.Amount);
            return accountBalanceModel;
+       }
+
+       public PayPalResponseResultModel SetExpressCheckoutOperation(HttpContext context, string amount)
+       {
+           var ammountValue = Convert.ToDouble(amount);
+           var resultmodel = new PayPalResponseResultModel();
+           if (!IsLimitExceeded(ammountValue, resultmodel))
+           {
+               var paymentRequestId = Guid.NewGuid().ToString();
+               var hostingEndPoint = ConfigurationManager.AppSettings["HOSTING_ENDPOINT"];
+               var webGoldUrlParams = ConfigurationManager.AppSettings["WEBRUNES_WEBGOLD_PARAMS"];
+               var cancel = ConfigurationManager.AppSettings["WEBRUNES_WEBGOLD_CANCEL"];
+               var redirectUrl = string.Concat(hostingEndPoint, "/PayPal/PayPalResponse");
+               try
+               {
+                   var setExpressCheckoutRequestDetails = new SetExpressCheckoutRequestDetailsType();
+                   setExpressCheckoutRequestDetails.ReturnURL = redirectUrl;
+                   setExpressCheckoutRequestDetails.CancelURL = string.Concat(hostingEndPoint, webGoldUrlParams, cancel);
+                   var paymentDetails = new PaymentDetailsType();
+                   paymentDetails.PaymentAction = PaymentActionCodeType.SALE;
+                   string orderDescription = "Payment to Webrunes";
+                   if (orderDescription != "")
+                   {
+                       paymentDetails.OrderDescription = orderDescription;
+                   }
+                   paymentDetails.ItemTotal = new BasicAmountType(CurrencyCodeType.USD, ammountValue.ToString());
+                   var orderTotal = new BasicAmountType(CurrencyCodeType.USD, ammountValue.ToString());
+                   paymentDetails.OrderTotal = orderTotal;
+                   setExpressCheckoutRequestDetails.BuyerEmail = _userEmail;
+                   paymentDetails.PaymentRequestID = paymentRequestId;
+                   paymentDetails.NotifyURL = redirectUrl;
+                   setExpressCheckoutRequestDetails.PaymentDetails.Add(paymentDetails);
+                   var setExpressCheckout = new SetExpressCheckoutReq();
+                   var setExpressCheckoutRequest = new SetExpressCheckoutRequestType(setExpressCheckoutRequestDetails);
+                   setExpressCheckout.SetExpressCheckoutRequest = setExpressCheckoutRequest;
+                   var service = new PayPalAPIInterfaceServiceService();
+                   SetExpressCheckoutResponseType responseType = service.SetExpressCheckout(setExpressCheckout);
+                   if (responseType != null)
+                   {
+                       if (responseType.Ack.Equals(AckCodeType.SUCCESS))
+                       {
+                           setExpressCheckoutRequestDetails.Token = responseType.Token;
+                           CreateTransaction(amount, responseType.Token);
+                           var checkoutUrl = ConfigurationManager.AppSettings["PAYPAL_CHECKOUT_URL"];
+                           resultmodel.Url = string.Concat(checkoutUrl,"&token=", responseType.Token);
+                           resultmodel.IsSucces = true;
+                       }
+                       else
+                       {
+                           resultmodel.IsSucces = false;
+                           List<ErrorType> errorMessages = responseType.Errors;
+                           foreach (ErrorType error in errorMessages)
+                           {
+                               resultmodel.Errors += "1." + error.ShortMessage;
+                               resultmodel.Errors += "; </br>";
+                           }
+                       }
+                   }
+               }   
+               catch (Exception e)
+               {
+                   throw new Exception(e.Message);
+               }
+           }
+           return resultmodel;
+       }
+
+       private void CreateTransaction(string amount,string token)
+       {
+           var entity = new Repository.Entity.PayPal
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            UserId = _userId,
+                            State = StateType.PENDING.ToString(),
+                            UpdateTime = DateTime.UtcNow,
+                            CreateTime = DateTime.UtcNow,
+                            Amount = Converter.ParseToDouble(amount),
+                            CurrencyCode = "USD",
+                            InternalPaymentId = token,
+                            Intent = "SALE",
+                            PayerEmail = _userEmail
+                        };
+
+           Repository.CreatePayPalTransaction(entity);
+       }
+
+       private bool IsLimitExceeded(double ammountValue,PayPalResponseResultModel resultmodel)
+       {
+           var sumAmountInLastDay = Repository.GetAmmountPayPalPorLastDay(_userId);
+           var limitPorDayVal = ConfigurationManager.AppSettings["addFunds_limitPorDay"];
+           var limitPorDay = Convert.ToInt32(limitPorDayVal);
+           if ((sumAmountInLastDay + ammountValue) > limitPorDay)
+           {
+               resultmodel.IsSucces = false;
+               return true;
+           }
+           return false;
        }
     }
 }

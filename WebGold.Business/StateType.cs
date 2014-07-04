@@ -2,9 +2,9 @@
 {
    public enum StateType
     {
-       Pending,
-       Denied,
-       Complete,
+       PENDING,
+       DENIED,
+       COMPLETE,
        InProgress
     }
 }

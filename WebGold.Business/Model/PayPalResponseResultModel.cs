@@ -5,5 +5,6 @@ namespace webGold.Business.Model
         public bool IsSucces { get; set; }
         public string Url { get; set; }
         public string Errors { get; set; }
+        public string ErrorKey { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Web;
+﻿using System;
+using System.Web;
 using webGold.Business.Model;
 using webGold.Business.PayPal;
 using webGold.Repository;
@@ -17,10 +18,19 @@ namespace webGold.Services
        public static PayPalResponseResultModel SendRequest(HttpContext context, string amount, string userId,
            string email)
        {
-          return new PayPalManager(userId, email).SendRequest(context, amount);
+           var manager = new PayPalManager(userId, email);
+           try
+           {
+               return manager.SetExpressCheckoutOperation(context, amount);
+           }
+           catch (Exception e)
+           {
+              throw new Exception(e.Message);
+           }
+           return null;
        }
 
-       public static string ResponseResult(string token, string payerId)
+       public static PayPalResponseResultModel ResponseResult(string token, string payerId)
        {
            return PayPalManager.PayPalResponseResult(token, payerId);
        }

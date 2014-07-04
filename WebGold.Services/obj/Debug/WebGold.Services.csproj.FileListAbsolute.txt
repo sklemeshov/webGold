@@ -1,0 +1,9 @@
+c:\Webrunes\webGold\WebGold.Services\obj\Debug\WebGold.Services.csprojResolveAssemblyReference.cache
+c:\Webrunes\webGold\lib\webGold.Services.dll
+c:\Webrunes\webGold\lib\webGold.Services.pdb
+c:\Webrunes\webGold\WebGold.Services\obj\Debug\webGold.Services.dll
+c:\Webrunes\webGold\WebGold.Services\obj\Debug\webGold.Services.pdb
+c:\Webrunes\web-app-main\Dlls\webGold.Services.dll
+c:\Webrunes\web-app-main\Dlls\webGold.Services.pdb
+C:\Webrunes\WRIO\Dlls\webGold.Services.dll
+C:\Webrunes\WRIO\Dlls\webGold.Services.pdb
