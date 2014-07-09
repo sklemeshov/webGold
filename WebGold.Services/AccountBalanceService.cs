@@ -33,7 +33,7 @@ namespace webGold.Services
            return PayPalManager.GetLastTransaction(userId);
        }
 
-       public static IList<PaymentHistory> PaymentHistoryCollection(string userId)
+       public static IList<PaymentHistoryModel> PaymentHistoryCollection(string userId)
        {
            return PayPalManager.GetHistoryCollectionBy(userId);
        }

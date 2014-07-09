@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Text;
+using BLToolkit.Data.DataProvider;
+using BLToolkit.Data.Linq;
 using webGold.Repository.Entity;
 using webGold.Repository.MySqlDataProvider;
 
@@ -9,25 +11,38 @@ namespace webGold.Repository
 {
     public class PaymentRepository : IPaymentRepository
     {
-       private string conn = ConfigurationManager.ConnectionStrings["MySqlWrioProfile"].ConnectionString;
-
-        public static IPaymentRepository GetInstance()
-        {
-            return new PaymentRepository();
-        }
-       public IList<PaymentHistory> GetPaymentHistoryBy(string userId)
+       private string conn;
+       public PaymentRepository()
        {
-           IList<PaymentHistory> pHistoryCollection;
+           conn = ConfigurationManager.ConnectionStrings["MySqlWrioProfile"].ConnectionString;
+       }
+
+       [Obsolete("Only for tests")]
+       public PaymentRepository(string connectionString)
+       {
+           conn = connectionString;
+       }
+       public static IPaymentRepository GetInstance()
+       {
+           return new PaymentRepository();
+       }
+
+       public IList<Transaction> GetPaymentHistoryBy(string userId)
+       {
+           const string providerName = "PayPal;";
+           IList<Transaction> pHistoryCollection;
            using (var context = new MySqlDbManager(conn))
             {
-                pHistoryCollection = context.SetCommand(
-                    string.Format("SELECT * FROM PaymentHistory WHERE UserId = '{0}' ORDER BY Date DESC", userId))
-                    .ExecuteList<PaymentHistory>();
+                var queryBuilder = new StringBuilder("SELECT * FROM dev_wrio.Transaction AS tr ");
+                queryBuilder.Append("INNER JOIN dev_wrio.PayPal AS pp ON tr.PaymentProviderId = pp.Id ");
+                queryBuilder.Append("INNER JOIN dev_wrio.UserAccount AS ua ON tr.UserId = ua.Id ");
+                queryBuilder.AppendFormat(" WHERE UserId = '{0}' AND tr.ProviderName = '{1}';", userId, providerName);
+                pHistoryCollection = context.SetCommand(queryBuilder.ToString()).ExecuteList<Transaction>();
             }
            return pHistoryCollection;
        }
 
-       public double GetAmmountPayPalPorLastDay(string userId)
+       public double GetAmmountPayPalPorLastDay(string userId, int paymentMethod)
        {
            double ammountPorLastDay = 0;
            using (var context = new MySqlDbManager(conn))
@@ -35,8 +50,8 @@ namespace webGold.Repository
                var dt =
                    context.SetCommand(
                        string.Format(
-                           "SELECT sum(Amount) FROM PaymentHistory WHERE UserId = '{0}' and PaymentType = 0 and Date >= ( CURDATE() - INTERVAL 3 DAY )",
-                           userId)).ExecuteDataTable();
+                           "SELECT sum(Amount) FROM Transaction WHERE UserId = '{0}' and PaymentMethod = {1} and UpdateTime >= ( CURDATE() - INTERVAL 1 DAY )",
+                           userId, paymentMethod)).ExecuteDataTable();
                if (dt != null)
                {
                    if(dt.Rows.Count != 0)
@@ -56,7 +71,7 @@ namespace webGold.Repository
                var dt =
                    context.SetCommand(
                        string.Format(
-                           "SELECT sum(Amount) FROM PaymentHistory WHERE UserId = '{0}' and PaymentType = 2 and Date >= ( CURDATE() - INTERVAL 3 DAY )",
+                           "SELECT sum(Amount) FROM Transaction WHERE UserId = '{0}' and PaymentType = 2 and Date >= ( CURDATE() - INTERVAL 1 DAY )",
                            userId)).ExecuteDataTable();
                if (dt != null)
                {
@@ -73,7 +88,7 @@ namespace webGold.Repository
        public void DeletePaymentHistoryBy(IList<string> paymentHistoryIdCollection)
        {
            var queryBuilder = new StringBuilder();
-           queryBuilder.Append(" DELETE FROM PaymentHistory WHERE id IN ( ");
+           queryBuilder.Append(" DELETE FROM Transaction WHERE id IN ( ");
            string separator = string.Empty;
            foreach (var id in paymentHistoryIdCollection)
            {
@@ -83,24 +98,25 @@ namespace webGold.Repository
           
        }
 
-       public void UpdatePaymenStatus(string userId,string transactionStatus)
+       public void UpdatePaymenStatus(string userId, int transactionState, int payPalState)
        {
-           var query = string.Format("UPDATE PaymentHistory SET TransactionStatus = '{0}' WHERE UserId = '{1}'",
-               transactionStatus, userId);
-
+           var queryBuilder = new StringBuilder("START TRANSACTION;");
+           queryBuilder.AppendFormat("UPDATE Transaction SET State = {0} WHERE UserId = '{1}';", transactionState, userId);
+           queryBuilder.AppendFormat("UPDATE PayPal SET State = {0} WHERE UserId = '{1}';", payPalState, userId);
+           queryBuilder.Append("COMMIT;");
            using (var db = new MySqlDbManager(conn))
            {
-               db.SetCommand(query).ExecuteNonQuery();
+               db.SetCommand(queryBuilder.ToString()).ExecuteNonQuery();
            }
        }
 
-       public void CreatePaymentHistory(PaymentHistory entity)
+       public void CreatePaymentHistory(Transaction entity)
        {
            using (var db = new MySqlDbManager(conn))
            {
-               db.SetCommand(@"INSERT INTO PaymentHistory 
-                              (Id,UserId,AccountId,Date,Currency,Amount,PaymentType,PaymentMethod,TransactionType,TransactionStatus,ReceivedEmail)
-                    VALUES(@Id,@UserId,@AccountId,@Date,@Currency,@Amount,@PaymentType,@PaymentMethod,@TransactionType,@TransactionStatus,@ReceivedEmail)"
+               db.SetCommand(@"INSERT INTO Transaction 
+                              (Id,UserId,CreationTime,UpdateTime,Amount,Currency,Fee,Wrg,PaymentProviderId,ProviderName,State,PaymentMethod,TransactionType,PaymentType)
+                    VALUES(@Id,@UserId,@CreationTime,@UpdateTime,@Amount,@Currency,@Fee,@Wrg,@PaymentProviderId,@ProviderName,@State,@PaymentMethod,@TransactionType,@PaymentType)"
                    , db.CreateParameters(entity)).ExecuteNonQuery();
            }
        }
@@ -122,8 +138,8 @@ namespace webGold.Repository
            using (var db = new MySqlDbManager(conn))
            {
                  db.SetCommand(@"
-                    INSERT INTO Account ( Id,  UserId,  GldAmount, UsdAmount)
-                    VALUES( @Id,  @UserId,  @GldAmount, @UsdAmount)", db.CreateParameters(entity)).ExecuteNonQuery();
+                    INSERT INTO Account ( Id,  UserId,  Wrg)
+                    VALUES( @Id,  @UserId,  @Wrg)", db.CreateParameters(entity)).ExecuteNonQuery();
            }
        }
 
@@ -132,58 +148,40 @@ namespace webGold.Repository
            using (var db = new MySqlDbManager(conn))
            {
 
-               db.SetCommand("UPDATE Account SET UsdAmount = @UsdAmount,GldAmount = @GldAmount  WHERE UserId = @UserId", db.CreateParameters(entity)).
+               db.SetCommand("UPDATE Account SET Wrg = @Wrg  WHERE UserId = @UserId", db.CreateParameters(entity)).
                    ExecuteNonQuery();
            }
        }
 
-       public void UpdateAccount(double usdAmount, string userId)
+       public void UpdateAccount(double wrgAmount, string userId)
        {
            using (var db = new MySqlDbManager(conn))
            {
 
                db.SetCommand(
-                   string.Format("UPDATE Account SET UsdAmount = {0}  WHERE UserId = '{1}'", usdAmount, userId)).
+                   string.Format("UPDATE Account SET Wrg = {0}  WHERE UserId = '{1}'", wrgAmount, userId)).
                    ExecuteNonQuery();
            }
        }
 
-       public void CreatePayPalTransaction(PayPal entity)
+       public void CreatePayPalTransaction(PayPal payPalEntity, Transaction transactionEntity)
        {
            using (var db = new MySqlDbManager(conn))
            {
-              db.SetCommand(@"
-                    INSERT INTO PayPal ( 
-                    Id, UserId, UserIp,InternalPaymentId,CreateTime,
-                    UpdateTime,PayPalId,Intent,PayerId,State,PayerEmail,PayerFirstName,PayerLastName,
-                    PayerPhone,PayerAddress,PaymentMethod,Amount,Fee,CurrencyCode,ReceiverInfoType)
-                    VALUES (@Id, @UserId, @UserIp,@InternalPaymentId,@CreateTime,
-                    @UpdateTime,@PayPalId,@Intent,@PayerId,@State,@PayerEmail,@PayerFirstName,@PayerLastName,
-                    @PayerPhone,@PayerAddress,@PaymentMethod,@Amount,@Fee,@CurrencyCode,@ReceiverInfoType)",
-                    db.Parameter("@Id", entity.Id),
-                    db.Parameter("@UserId", entity.UserId),
-                    db.Parameter("@UserIp", entity.UserIp),
-                    db.Parameter("@InternalPaymentId", entity.InternalPaymentId),
-                    db.Parameter("@CreateTime", entity.CreateTime),
-                    db.Parameter("@UpdateTime", entity.UpdateTime),
-                    db.Parameter("@PayPalId", entity.PayPalId),
-                    db.Parameter("@Intent", entity.Intent),
-                    db.Parameter("@PayerId", entity.PayerId),
-                    db.Parameter("@State", entity.State),
-                    db.Parameter("@PayerEmail", entity.PayerEmail),
-                    db.Parameter("@PayerFirstName", entity.PayerFirstName),
-                    db.Parameter("@PayerLastName", entity.PayerLastName),
-                    db.Parameter("@PayerPhone", entity.PayerPhone),
-                    db.Parameter("@PayerAddress", entity.PayerAddress),
-                    db.Parameter("@PaymentMethod", entity.PaymentMethod),
-                    db.Parameter("@Amount", entity.Amount),
-                    db.Parameter("@Fee", entity.Fee),
-                    db.Parameter("@CurrencyCode", entity.CurrencyCode),
-                    db.Parameter("@ReceiverInfoType", entity.ReceiverInfoType))
-                .ExecuteNonQuery();
+               db.BeginTransaction();
+               db.Insert(payPalEntity);
+               db.Insert(transactionEntity);
+               db.CommitTransaction();
            }
        }
 
+       public void UpdateTransaction(Transaction transaction)
+        {
+            using (var db = new MySqlDbManager(conn))
+            {
+                db.Update(transaction);
+            }
+        }
        public bool UpdatePayPal(PayPal payPal)
        {
            var payPalEntity = GetPayPalBy(payPal.InternalPaymentId);
@@ -199,27 +197,12 @@ namespace webGold.Repository
        {
            using (var db = new MySqlDbManager(conn))
            {
-               db.SetCommand(@"UPDATE PayPal SET
-                         UserId = @UserId,
-                         UserIp = @UserIp,
-                         InternalPaymentId = @InternalPaymentId,
-                         CreateTime = @CreateTime,
-                         UpdateTime = @UpdateTime,
-                         PayPalId = @PayPalId,
-                         Intent = @Intent,
-                         PayerId = @PayerId,
-                         State = @State,
-                         PayerEmail = @PayerEmail,
-                         PayerFirstName = @PayerFirstName,
-                         PayerLastName = @PayerLastName,
-                         PayerPhone = @PayerPhone,
-                         PayerAddress = @PayerAddress,
-                         PaymentMethod = @PaymentMethod,
-                         Amount = @Amount,
-                         Fee = @Fee,
-                         CurrencyCode = @CurrencyCode, 
-                         ReceiverInfoType = @ReceiverInfoType                        
-                         WHERE Id = @Id",
+               db.SetCommand(@"UPDATE PayPal SET                               
+                               InternalPaymentId=@InternalPaymentId,
+                               Intent=@Intent,
+                               PayerId=@PayerId,
+                               State=@State                
+                               WHERE Id = @Id",
                     db.CreateParameters(payPal))
                 .ExecuteNonQuery();
            }
@@ -239,24 +222,28 @@ namespace webGold.Repository
 
        public void DeletPayPalTransactionBy(string id)
        {
-           var query = string.Format("DELETE FROM PayPal WHERE Id = '{0}'", id);
+           var queryBuilder = new StringBuilder("START TRANSACTION;");
+           queryBuilder.AppendFormat("DELETE FROM PayPal WHERE Id = '{0}';", id);
+           queryBuilder.AppendFormat("DELETE FROM Transaction WHERE PaymentProviderId = '{0}';", id);
+           queryBuilder.Append("COMMIT;");
+          
            using (var db = new MySqlDbManager(conn))
            {
-               db.SetCommand(query).ExecuteNonQuery();
+               db.SetCommand(queryBuilder.ToString()).ExecuteNonQuery();
            }
        }
-      
-       public PaymentHistory GetLastTransaction(string userId)
+
+       public Transaction GetLastTransaction(string userId)
        {
-           var queryBuilder = new StringBuilder("SELECT * FROM `dev_wrio`.`PaymentHistory` ");
-           queryBuilder.AppendFormat("WHERE UserId = '{0}' ORDER BY `PaymentHistory`.`Date` DESC LIMIT 1", userId);
-           PaymentHistory paymentHistory;
+           var queryBuilder = new StringBuilder("SELECT * FROM `dev_wrio`.`Transaction` ");
+           queryBuilder.AppendFormat("WHERE UserId = '{0}' ORDER BY `Transaction`.`UpdateTime` DESC LIMIT 1", userId);
+           Transaction paymentHistory;
            using (var context = new MySqlDbManager(conn))
            {
                try
                {
                    paymentHistory =
-                   context.SetCommand(queryBuilder.ToString()).ExecuteObject<PaymentHistory>();
+                   context.SetCommand(queryBuilder.ToString()).ExecuteObject<Transaction>();
                }catch(Exception e)
                {
                    throw new Exception(e.Message);
@@ -265,5 +252,23 @@ namespace webGold.Repository
            }
            return paymentHistory;
        }
+
+        public Transaction GetTransactionBy(string payPalId)
+        {
+            Transaction trEntity = null;
+            using (var db = new MySqlDbManager(conn))
+            {
+                try
+                {
+                    trEntity = db.SetCommand(string.Format("SELECT * FROM Transaction WHERE PaymentProviderId ='{0}'",
+                        payPalId)).ExecuteObject<Transaction>();
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(e.Message);
+                }
+            }
+            return trEntity;
+        }
     }
 }

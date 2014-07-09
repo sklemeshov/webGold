@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Runtime.InteropServices;
 using System.Web;
 using PayPal.PayPalAPIInterfaceService;
 using PayPal.PayPalAPIInterfaceService.Model;
@@ -58,108 +59,102 @@ namespace webGold.Business.PayPal
                return model;
            }
            var amount = Converter.ParseToDouble(paymentInfoType.GrossAmount.value);
-           var payPalEntity = payPal as Repository.Entity.PayPal;
-           if (amount != payPalEntity.Amount)
+           Transaction transactionEntity = repository.GetTransactionBy(payPal.Id);
+           if (amount != transactionEntity.Amount)
            {
                model.Errors = "Not enough money in the account.";
                return model;
            }
-           var entity = new Repository.Entity.PayPal();
-           entity.Id = payPalEntity.Id;
-           entity.UpdateTime = DateTime.UtcNow;
-           entity.State = doECResponse.Ack.Value.ToString().ToLower();
-           entity.InternalPaymentId = payPalEntity.InternalPaymentId;
-           entity.PayerId = payerId;
-           entity.UserId = payPalEntity.UserId;
-           entity.Amount = payPalEntity.Amount;
-           entity.Fee = Converter.ParseToDouble(paymentInfoType.FeeAmount.value);
-           entity.CurrencyCode = payPalEntity.CurrencyCode;
-
-           Repository.Entity.PayPal paypalEntity = repository.GetPayPalBy(entity.InternalPaymentId);
-           var needToDeposit = paypalEntity.State.Equals(StateType.PENDING.ToString()) && isPaid;
-           repository.UpdatePayPal(entity);
-           if (needToDeposit)
+           transactionEntity.UpdateTime = DateTime.UtcNow;
+           transactionEntity.State = (int)TransactionState.Complete;
+           transactionEntity.Fee = Converter.ParseToDouble(paymentInfoType.FeeAmount.value);        
+          
+           payPal.PayerId = payerId;
+           payPal.State = (int)TransactionState.Complete;
+           repository.UpdatePayPal(payPal);
+           if (payPal.State == (int) TransactionState.InProgress)
            {
-               Deposit(entity, repository);
+               Deposit(transactionEntity, repository);
            }
            model.IsSucces = true;
            return model;
        }
 
-       public static void Deposit(Repository.Entity.PayPal entity, IPaymentRepository repository)
+       public static void Deposit(Transaction entity, IPaymentRepository repository)
          {
-             if (!entity.CurrencyCode.Equals("USD", StringComparison.InvariantCultureIgnoreCase))
-             {
-                 throw new ApplicationException(string.Format("Unable to deposit. Unconfigured currency {0}.", entity.CurrencyCode));
-             }
-             var account = repository.GetAccountBy(entity.UserId);
-             double amount = entity.Amount - entity.Fee;
-             if(account == null)
-             {
-                 account = new Account
-                           {
-                               Id = Guid.NewGuid().ToString(),
-                               UserId = entity.UserId,
-                               GldAmount = 0,
-                               UsdAmount = 0
-                           };
-                 repository.CreateAccount(account);
-             }
-             if (account.UsdAmount != 0)
-             {
-                 account.UsdAmount = account.UsdAmount + amount;
-             }
-             else
-             {
-                 account.UsdAmount = amount;
-             }
-            account.GldAmount = new GoldenStandartConverter().ConvertFromUsdToGld(account.UsdAmount);
-            repository.UpdateAccount(account);
-             var paymentHistoryEntity = new PaymentHistory();
-             paymentHistoryEntity.Id = Guid.NewGuid().ToString();
-             paymentHistoryEntity.PaymentType = ((int)PaymentType.PayPal).ToString();
-             paymentHistoryEntity.PaymentMethod = ((int)PaymentMethod.Credit).ToString();
-             paymentHistoryEntity.Date = DateTime.UtcNow;
-             paymentHistoryEntity.Amount = amount; 
-             paymentHistoryEntity.Currency = "USD";
-             paymentHistoryEntity.TransactionStatus = entity.State;
-             paymentHistoryEntity.AccountId = account.Id;
-             paymentHistoryEntity.UserId = entity.UserId;
-             repository.CreatePaymentHistory(paymentHistoryEntity);
+             if (entity.Currency != (int)CurrencyType.USD)
+               {
+                   throw new ApplicationException(string.Format("Unable to deposit. Unconfigured currency {0}.", entity.Currency));
+               }
+               var account = repository.GetAccountBy(entity.UserId);
+               entity.Amount = entity.Amount - (float)entity.Fee;
+               var dgStandartService = new GoldenStandartConverter();
+               var convertedWrg = dgStandartService.ConvertFromUsdToGld(entity.Amount);
+               if(account == null)
+               {
+                   account = new Account
+                             {
+                                 Id = Guid.NewGuid().ToString(),
+                                 UserId = entity.UserId
+                             };
+                   repository.CreateAccount(account);
+               }
+               if (account.Wrg != 0)
+               {
+                   account.Wrg = account.Wrg + (float)convertedWrg;
+               }
+               else
+               {
+                   account.Wrg = 0;
+               }
+             
+               repository.UpdateAccount(account);
+               repository.UpdateTransaction(entity);
          }
 
-       public static IList<PaymentHistory> GetHistoryCollectionBy(string userId)
+       public static IList<PaymentHistoryModel> GetHistoryCollectionBy(string userId)
        {
-           return new PaymentRepository().GetPaymentHistoryBy(userId);
+           var modelList = new List<PaymentHistoryModel>();
+           var entityCollection = new PaymentRepository().GetPaymentHistoryBy(userId);
+           foreach (var paymentHistory in entityCollection)
+           {
+               modelList.Add(new PaymentHistoryModel(paymentHistory)); 
+           }
+           return modelList;
+       }
+       public static IList<Transaction> HistoryCollectionBy(string userId)
+       {
+          return new PaymentRepository().GetPaymentHistoryBy(userId);
        }
 
        public static void PayPalWithdraw(Repository.Entity.PayPal entity, string emailTo)
-       {
-           var repository = new PaymentRepository();
-           double curAmount = entity.Amount;
-           var account = repository.GetAccountBy(entity.UserId);
-           account.UsdAmount = account.UsdAmount - curAmount;
-           //account.UsdAmount
-           repository.UpdateAccount(account);
-           var paymenthistory = new PaymentHistory();
-           paymenthistory.Id = Guid.NewGuid().ToString();
-           paymenthistory.UserId = entity.UserId;
-           paymenthistory.Amount = curAmount;
-           paymenthistory.Date = DateTime.UtcNow;
-           paymenthistory.Currency = "USD";
-           paymenthistory.AccountId = account.Id;
-           paymenthistory.PaymentMethod = entity.PaymentMethod;
-           paymenthistory.PaymentType = ((int)PaymentType.Transfer).ToString();
-           paymenthistory.TransactionType = "Sent";
-           paymenthistory.TransactionStatus = "Pending";
-           paymenthistory.ReceivedEmail = emailTo;
-           repository.CreatePaymentHistory(paymenthistory);
+       {          
+           //var repository = new PaymentRepository();
+           //double curAmount = entity.Amount;
+           //var account = repository.GetAccountBy(entity.UserId);
+           //account.UsdAmount = account.UsdAmount - curAmount;
+           ////account.UsdAmount
+           //repository.UpdateAccount(account);
+           //var paymenthistory = new Transaction();
+           //paymenthistory.Id = Guid.NewGuid().ToString();
+           //paymenthistory.UserId = entity.UserId;
+           //paymenthistory.Amount = curAmount;
+           //paymenthistory.Date = DateTime.UtcNow;
+           //paymenthistory.Currency = "USD";
+           //paymenthistory.AccountId = account.Id;
+           //paymenthistory.PaymentMethod = entity.PaymentMethod;
+           //paymenthistory.PaymentType = ((int)PaymentType.Transfer).ToString();
+           //paymenthistory.TransactionType = "Sent";
+           //paymenthistory.TransactionStatus = "Pending";
+           //paymenthistory.ReceivedEmail = emailTo;
+           //repository.CreatePaymentHistory(paymenthistory);
+           /**/
        }
 
        public static double GetAmmountSumInDayBy(string userId)
        {
            var repository = new PaymentRepository();
-           return repository.GetAmmountPayPalPorLastDay(userId);
+           return repository.GetAmmountPayPalPorLastDay(userId,(int)PaymentMethod.Debit);
        }
 
        public static double GetAmmountTransferPorLastDay(string userId)
@@ -173,8 +168,6 @@ namespace webGold.Business.PayPal
            var repository = new PaymentRepository();
            var tModel = repository.GetLastTransaction(userId);
            var accountBalanceModel = new AccountBalanceModel(tModel.Amount);
-           //accountBalanceModel.Usd = tModel.Amount;
-           //accountBalanceModel.Gs = (Int64) new GoldenStandartConverter().ConvertFromUsdToGld(tModel.Amount);
            return accountBalanceModel;
        }
 
@@ -245,34 +238,56 @@ namespace webGold.Business.PayPal
 
        private void CreateTransaction(string amount,string token)
        {
-           var entity = new Repository.Entity.PayPal
+           var payPalEntity = new Repository.Entity.PayPal
                         {
                             Id = Guid.NewGuid().ToString(),
-                            UserId = _userId,
-                            State = StateType.PENDING.ToString(),
-                            UpdateTime = DateTime.UtcNow,
-                            CreateTime = DateTime.UtcNow,
-                            Amount = Converter.ParseToDouble(amount),
-                            CurrencyCode = "USD",
-                            InternalPaymentId = token,
                             Intent = "SALE",
-                            PayerEmail = _userEmail
+                            InternalPaymentId = token,
+                            PayerId = _userId,
+                            State = (int)TransactionState.InProgress
                         };
+           var amoundVal = float.Parse(amount);
+           var wrg = new GoldenStandartConverter().ConvertFromUsdToGld(amoundVal);           
+           var transactionEntity = new Transaction()
+                                   {
+                                       Id = Guid.NewGuid().ToString(),
+                                       UserId = _userId,
+                                       Amount = amoundVal,
+                                       Currency = (int)CurrencyType.USD,
+                                       Wrg = (float) wrg,
+                                       CreationTime = DateTime.UtcNow,
+                                       Fee = 0,
+                                       PaymentMethod = (int)PaymentMethod.Debit,
+                                       PaymentProviderId = payPalEntity.Id,
+                                       PaymentType = (int)PaymentType.PayPal,
+                                       ProviderName = PaymentType.PayPal.ToString(),
+                                       State = (int)TransactionState.InProgress,
+                                       TransactionType = (int)TransactionType.Sent,
+                                       UpdateTime = DateTime.UtcNow,
+                                   };
 
-           Repository.CreatePayPalTransaction(entity);
+           Repository.CreatePayPalTransaction(payPalEntity, transactionEntity);
        }
 
        private bool IsLimitExceeded(double ammountValue,PayPalResponseResultModel resultmodel)
        {
-           var sumAmountInLastDay = Repository.GetAmmountPayPalPorLastDay(_userId);
-           var limitPorDayVal = ConfigurationManager.AppSettings["addFunds_limitPorDay"];
-           var limitPorDay = Convert.ToInt32(limitPorDayVal);
-           if ((sumAmountInLastDay + ammountValue) > limitPorDay)
+           try
            {
-               resultmodel.IsSucces = false;
-               return true;
+               var sumAmountInLastDay = Repository.GetAmmountPayPalPorLastDay(_userId,(int)PaymentType.PayPal);
+               var limitPorDayVal = ConfigurationManager.AppSettings["addFunds_limitPorDay"];
+               var limitPorDay = Convert.ToInt32(limitPorDayVal);
+               if ((sumAmountInLastDay + ammountValue) > limitPorDay)
+               {
+                   resultmodel.IsSucces = false;
+                   return true;
+               }
+               return false;
            }
-           return false;
+           catch (Exception e)
+           {
+               throw new Exception(e.Message);
+           }
+          
        }
     }
 }

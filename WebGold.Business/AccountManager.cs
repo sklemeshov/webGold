@@ -8,7 +8,12 @@ namespace webGold.Business
     {
        public static Account GetAccountBy(string userId)
        {
-           return RepositoryHelper.Initialize().GetAccountBy(userId);
+           var account = RepositoryHelper.Initialize().GetAccountBy(userId);
+           if (account == null)
+           {
+               account = new Account();
+           }
+           return account;
        }
 
        public static AccountBalanceModel GetUserBalanceBy(string userId)

@@ -63,14 +63,17 @@
     <Compile Include="CurrencyRate.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CurrencyType.cs" />
     <Compile Include="GoldenStandartConverter.cs" />
     <Compile Include="Model\AccountBalanceModel.cs" />
+    <Compile Include="Model\PaymentHistoryModel.cs" />
     <Compile Include="Model\PayPalResponseResultModel.cs" />
     <Compile Include="PaymentMethod.cs" />
     <Compile Include="PaymentType.cs" />
     <Compile Include="PayPal\PayPalManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="StateType.cs" />
+    <Compile Include="TransactionState.cs" />
+    <Compile Include="TransactionType.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

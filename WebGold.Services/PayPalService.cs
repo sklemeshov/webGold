@@ -19,25 +19,12 @@ namespace webGold.Services
            string email)
        {
            var manager = new PayPalManager(userId, email);
-           try
-           {
-               return manager.SetExpressCheckoutOperation(context, amount);
-           }
-           catch (Exception e)
-           {
-              throw new Exception(e.Message);
-           }
-           return null;
+           return manager.SetExpressCheckoutOperation(context, amount);
        }
 
        public static PayPalResponseResultModel ResponseResult(string token, string payerId)
        {
            return PayPalManager.PayPalResponseResult(token, payerId);
-       }
-
-       public static void Deposit(webGold.Repository.Entity.PayPal entity, IPaymentRepository repository)
-       {
-           PayPalManager.Deposit(entity, repository);
        }
 
        //Todo: Email send !!!

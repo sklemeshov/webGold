@@ -7,3 +7,8 @@ c:\Webrunes\web-app-main\Dlls\webGold.Repository.pdb
 c:\Webrunes\webGold\WebGold.Repository\obj\Debug\WebGold.Repository.csprojResolveAssemblyReference.cache
 C:\Webrunes\WRIO\Dlls\webGold.Repository.dll
 C:\Webrunes\WRIO\Dlls\webGold.Repository.pdb
+c:\---GitHub---\WRIO\Dlls\webGold.Repository.dll
+c:\---GitHub---\WRIO\Dlls\webGold.Repository.pdb
+c:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.dll
+c:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.pdb
+C:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.csprojResolveAssemblyReference.cache

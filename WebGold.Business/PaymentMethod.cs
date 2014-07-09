@@ -2,7 +2,7 @@
 {
     public enum PaymentMethod
     {
-        Debit = 0,
-        Credit = 1
+        Debit = 1,
+        Credit = 2
     }
 }

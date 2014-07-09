@@ -16,3 +16,8 @@ c:\Webrunes\WRIO\Dlls\webGold.Business.dll
 c:\Webrunes\WRIO\Dlls\webGold.Business.pdb
 c:\Webrunes\webGold\webGold.Business\obj\Debug\webGold.Business.dll
 c:\Webrunes\webGold\webGold.Business\obj\Debug\webGold.Business.pdb
+c:\---GitHub---\WRIO\Dlls\webGold.Business.dll
+c:\---GitHub---\WRIO\Dlls\webGold.Business.pdb
+c:\---GitHub---\webGold\webGold.Business\obj\Debug\webGold.Business.dll
+c:\---GitHub---\webGold\webGold.Business\obj\Debug\webGold.Business.pdb
+C:\---GitHub---\webGold\webGold.Business\obj\Debug\webGold.Business.csprojResolveAssemblyReference.cache

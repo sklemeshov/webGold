@@ -11,8 +11,6 @@ namespace webGold.Repository.Entity
        [NullValue]
        public string UserId { get; set; }
        [NullValue]
-       public double GldAmount { get; set; }
-       [NullValue]
-       public double UsdAmount { get; set; }
+       public float Wrg { get; set; }
     }
 }

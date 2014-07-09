@@ -53,8 +53,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Entity\Account.cs" />
-    <Compile Include="Entity\PaymentHistory.cs" />
     <Compile Include="Entity\PayPal.cs" />
+    <Compile Include="Entity\Transaction.cs" />
     <Compile Include="IPaymentRepository.cs" />
     <Compile Include="MySqlDataProvider.cs" />
     <Compile Include="MySqlDbManager.cs" />
