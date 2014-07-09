@@ -72,7 +72,7 @@ namespace webGold.Business.PayPal
            payPal.PayerId = payerId;
            payPal.State = (int)TransactionState.Complete;
            repository.UpdatePayPal(payPal);
-           if (payPal.State == (int) TransactionState.InProgress)
+           if (payPal.State.Equals(TransactionState.InProgress.ToString()))
            {
                Deposit(transactionEntity, repository);
            }
@@ -246,7 +246,7 @@ namespace webGold.Business.PayPal
                             PayerId = _userId,
                             State = (int)TransactionState.InProgress
                         };
-           var amoundVal = float.Parse(amount);
+           var amoundVal = Convert.ToDouble(amount);
            var wrg = new GoldenStandartConverter().ConvertFromUsdToGld(amoundVal);           
            var transactionEntity = new Transaction()
                                    {

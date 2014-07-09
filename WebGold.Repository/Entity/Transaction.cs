@@ -16,7 +16,7 @@ namespace webGold.Repository.Entity
         [NullValue]
         public DateTime UpdateTime { get; set; }
         [NullValue]
-        public float Amount { get; set; }
+        public double Amount { get; set; }
         [NullValue]
         public int Currency { get; set; }
         [NullValue]

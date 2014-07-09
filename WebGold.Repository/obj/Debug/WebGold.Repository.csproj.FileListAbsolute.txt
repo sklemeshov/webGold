@@ -11,4 +11,3 @@ c:\---GitHub---\WRIO\Dlls\webGold.Repository.dll
 c:\---GitHub---\WRIO\Dlls\webGold.Repository.pdb
 c:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.dll
 c:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.pdb
-C:\---GitHub---\webGold\webGold.Repository\obj\Debug\webGold.Repository.csprojResolveAssemblyReference.cache

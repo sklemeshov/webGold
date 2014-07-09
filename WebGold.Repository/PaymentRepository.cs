@@ -169,8 +169,13 @@ namespace webGold.Repository
            using (var db = new MySqlDbManager(conn))
            {
                db.BeginTransaction();
-               db.Insert(payPalEntity);
-               db.Insert(transactionEntity);
+               db.SetCommand(@"INSERT INTO `dev_wrio`.`PayPal`(`Id`,`InternalPaymentId`,`Intent`,`PayerId`,`State`)
+                               VALUES (@Id,@InternalPaymentId,@Intent,@PayerId,@State);",
+                   db.CreateParameters(payPalEntity));
+               db.SetCommand(@"INSERT INTO Transaction 
+                              (Id,UserId,CreationTime,UpdateTime,Amount,Currency,Fee,Wrg,PaymentProviderId,ProviderName,State,PaymentMethod,TransactionType,PaymentType)
+                    VALUES(@Id,@UserId,@CreationTime,@UpdateTime,@Amount,@Currency,@Fee,@Wrg,@PaymentProviderId,@ProviderName,@State,@PaymentMethod,@TransactionType,@PaymentType)"
+                   , db.CreateParameters(transactionEntity));              
                db.CommitTransaction();
            }
        }
