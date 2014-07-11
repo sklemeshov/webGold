@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AccountManager.cs" />
+    <Compile Include="AmountConverter.cs" />
     <Compile Include="Converter.cs" />
     <Compile Include="CurrencyRate.cs">
       <SubType>Code</SubType>
@@ -68,6 +69,7 @@
     <Compile Include="Model\AccountBalanceModel.cs" />
     <Compile Include="Model\PaymentHistoryModel.cs" />
     <Compile Include="Model\PayPalResponseResultModel.cs" />
+    <Compile Include="Model\WithdrawModel.cs" />
     <Compile Include="PaymentMethod.cs" />
     <Compile Include="PaymentType.cs" />
     <Compile Include="PayPal\PayPalManager.cs" />

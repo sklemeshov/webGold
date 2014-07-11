@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using webGold.Repository.Entity;
 
 namespace webGold.Repository
@@ -25,6 +21,9 @@ namespace webGold.Repository
         PayPal GetPayPalBy(string token);
         void DeletPayPalTransactionBy(string id);
         Transaction GetLastTransaction(string userId);
-        void UpdateTransaction(Transaction transaction);
+        void UpdateTransactionAmount(Transaction transaction);
+        void CreateTransfer(Transfer entity, Transaction transactionEntity);
+        void UpdateTransferStatus(Transfer entity);
+        void DeleteTransferBy(string id);
     }
 }

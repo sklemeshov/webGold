@@ -1,6 +1,6 @@
 ﻿using webGold.Business;
 
-namespace WebGold.Services
+namespace webGold.Services
 {
    public static class GoldenStandartService
    {

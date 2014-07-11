@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Runtime.InteropServices;
 using System.Web;
 using PayPal.PayPalAPIInterfaceService;
 using PayPal.PayPalAPIInterfaceService.Model;
 using webGold.Business.Model;
 using webGold.Repository;
 using webGold.Repository.Entity;
+using ErrorType = PayPal.PayPalAPIInterfaceService.Model.ErrorType;
 
 namespace webGold.Business.PayPal
 {
@@ -63,17 +63,17 @@ namespace webGold.Business.PayPal
            if (amount != transactionEntity.Amount)
            {
                model.Errors = "Not enough money in the account.";
+               model.IsSucces = false;
                return model;
            }
+           if (isPaid)
+           {
            transactionEntity.UpdateTime = DateTime.UtcNow;
            transactionEntity.State = (int)TransactionState.Complete;
            transactionEntity.Fee = Converter.ParseToDouble(paymentInfoType.FeeAmount.value);        
-          
            payPal.PayerId = payerId;
            payPal.State = (int)TransactionState.Complete;
            repository.UpdatePayPal(payPal);
-           if (payPal.State.Equals(TransactionState.InProgress.ToString()))
-           {
                Deposit(transactionEntity, repository);
            }
            model.IsSucces = true;
@@ -99,17 +99,10 @@ namespace webGold.Business.PayPal
                              };
                    repository.CreateAccount(account);
                }
-               if (account.Wrg != 0)
-               {
                    account.Wrg = account.Wrg + (float)convertedWrg;
-               }
-               else
-               {
-                   account.Wrg = 0;
-               }
              
                repository.UpdateAccount(account);
-               repository.UpdateTransaction(entity);
+               repository.UpdateTransactionAmount(entity);
          }
 
        public static IList<PaymentHistoryModel> GetHistoryCollectionBy(string userId)
@@ -127,28 +120,85 @@ namespace webGold.Business.PayPal
           return new PaymentRepository().GetPaymentHistoryBy(userId);
        }
 
-       public static void PayPalWithdraw(Repository.Entity.PayPal entity, string emailTo)
-       {          
-           //var repository = new PaymentRepository();
-           //double curAmount = entity.Amount;
-           //var account = repository.GetAccountBy(entity.UserId);
-           //account.UsdAmount = account.UsdAmount - curAmount;
-           ////account.UsdAmount
-           //repository.UpdateAccount(account);
-           //var paymenthistory = new Transaction();
-           //paymenthistory.Id = Guid.NewGuid().ToString();
-           //paymenthistory.UserId = entity.UserId;
-           //paymenthistory.Amount = curAmount;
-           //paymenthistory.Date = DateTime.UtcNow;
-           //paymenthistory.Currency = "USD";
-           //paymenthistory.AccountId = account.Id;
-           //paymenthistory.PaymentMethod = entity.PaymentMethod;
-           //paymenthistory.PaymentType = ((int)PaymentType.Transfer).ToString();
-           //paymenthistory.TransactionType = "Sent";
-           //paymenthistory.TransactionStatus = "Pending";
-           //paymenthistory.ReceivedEmail = emailTo;
-           //repository.CreatePaymentHistory(paymenthistory);
-           /**/
+       public static WithdrawModel PayPalWithdraw(WithdrawModel model)
+       {
+           var repository = RepositoryHelper.Initialize();
+           double amountUSD = Converter.ParseToDouble(model.USDAmount);
+          
+           if (amountUSD > 100)
+           {
+               amountUSD = 100;
+           }
+           else
+           {
+               if (amountUSD < 5)
+               {
+                   model.IsTransferCanseled = true;
+                   model.ErrorType = Model.ErrorType.minimumLimit.ToString();
+                   return model;
+               }
+           }
+           var ammountByLastDay = GetAmmountTransferPorLastDay(model.UserId);
+           if (ammountByLastDay >= 100 - 5)
+           {
+               model.IsTransferCanseled = true;
+               //add message!!!
+               model.ErrorType = Model.ErrorType.dayLimit.ToString();
+               //model.ErrorMessage = "";
+               return model;
+           }
+           if (ammountByLastDay + amountUSD > 100)
+           {
+               model.IsTransferCanseled = true;
+               model.ErrorType = webGold.Business.Model.ErrorType.dayLimit.ToString();
+               //add message!!!
+               return model;
+           }
+
+           var accountEntity = AccountManager.GetAccountBy(model.UserId);
+           var gService = new GoldenStandartConverter();
+           var withdrawWRGAmount = gService.ConvertFromUsdToGld(amountUSD);
+           if (accountEntity.Wrg < withdrawWRGAmount)
+           {
+               model.IsTransferCanseled = true;
+               model.ErrorType = Model.ErrorType.haventMoney.ToString();
+               return model;
+           }
+           string receiverInfoType = string.Empty;
+           if (!string.IsNullOrEmpty(model.Email))
+           {
+               receiverInfoType = ReceiverInfoCodeType.EMAILADDRESS.ToString();
+           }
+           string email = model.Email;
+
+           var transferEntity = new Transfer()
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    PayerId = model.UserId,
+                                    RecipientId = model.RecipientId,
+                                    State = (int)TransactionState.InProgress
+                                };
+           var transactionEntity = new Transaction()
+           {
+               Id = Guid.NewGuid().ToString(),
+               UserId = model.UserId,
+               Amount = amountUSD,
+               Currency = (int)CurrencyType.USD,
+               Wrg = (float)withdrawWRGAmount,
+               CreationTime = DateTime.UtcNow,
+               Fee = 0,
+               PaymentMethod = (int)PaymentMethod.Credit,
+               PaymentProviderId = transferEntity.Id,
+               PaymentType = (int)PaymentType.Transfer,
+               ProviderName = PaymentType.Transfer.ToString(),
+               State = (int)TransactionState.InProgress,
+               TransactionType = (int)TransactionType.Sent,
+               UpdateTime = DateTime.UtcNow,
+           };
+           repository.CreateTransfer(transferEntity, transactionEntity);
+           accountEntity.Wrg = accountEntity.Wrg - (float)withdrawWRGAmount;
+           repository.UpdateAccount(accountEntity);
+           return model;
        }
 
        public static double GetAmmountSumInDayBy(string userId)
@@ -167,7 +217,7 @@ namespace webGold.Business.PayPal
        {
            var repository = new PaymentRepository();
            var tModel = repository.GetLastTransaction(userId);
-           var accountBalanceModel = new AccountBalanceModel(tModel.Amount);
+           var accountBalanceModel = new AccountBalanceModel(tModel.Wrg);
            return accountBalanceModel;
        }
 

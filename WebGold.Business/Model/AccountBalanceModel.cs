@@ -20,7 +20,6 @@ namespace webGold.Business.Model
 
        private void AmountToStrFormat(double wrg)
        {
-           Thread.CurrentThread.CurrentCulture = new CultureInfo("ru-RU");  
            var gsService = new GoldenStandartConverter();
            Currency = gsService.GldPrice10000;    
            CurrencyStr = String.Format(CultureInfo.InvariantCulture, "{0:0.00}", Currency);
@@ -28,9 +27,9 @@ namespace webGold.Business.Model
            {                                      
                var usdAmount = gsService.ConvertFromGldToUsd(wrg);
                Usd = Math.Round(usdAmount, 2);
-               UsdStr = String.Format(CultureInfo.InvariantCulture, "{0:0 000.00}", Usd);
+               UsdStr = AmountConverter.ToUSDAmountStr(Usd);
                Wrg = Convert.ToInt64(wrg);
-               WrgStr = String.Format(CultureInfo.InvariantCulture, "{0:0 000}", Wrg);
+               WrgStr = AmountConverter.ToWRGAmountStr(Wrg);
            }
            else
            {
@@ -39,7 +38,6 @@ namespace webGold.Business.Model
                Wrg = 0;
                WrgStr = "0";
            }
-           Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
        }
 
 

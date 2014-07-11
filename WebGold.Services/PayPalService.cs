@@ -14,25 +14,20 @@ namespace webGold.Services
        {
            return SendRequest(context.ApplicationInstance.Context, amount, userId, email);
        }
-
        public static PayPalResponseResultModel SendRequest(HttpContext context, string amount, string userId,
            string email)
        {
            var manager = new PayPalManager(userId, email);
            return manager.SetExpressCheckoutOperation(context, amount);
        }
-
        public static PayPalResponseResultModel ResponseResult(string token, string payerId)
        {
            return PayPalManager.PayPalResponseResult(token, payerId);
        }
-
-       //Todo: Email send !!!
-       public static void Withdraw(webGold.Repository.Entity.PayPal entity, string emailTo)
+       public static WithdrawModel Withdraw(WithdrawModel model)
        {
-           PayPalManager.PayPalWithdraw(entity, emailTo);
+           return PayPalManager.PayPalWithdraw(model);
        }
-
        public static AccountBalanceModel GetLastTransaction(string userId)
        {
            return PayPalManager.GetLastTransaction(userId);

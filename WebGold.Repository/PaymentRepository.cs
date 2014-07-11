@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Text;
-using BLToolkit.Data.DataProvider;
-using BLToolkit.Data.Linq;
 using webGold.Repository.Entity;
 using webGold.Repository.MySqlDataProvider;
 
@@ -16,7 +14,6 @@ namespace webGold.Repository
        {
            conn = ConfigurationManager.ConnectionStrings["MySqlWrioProfile"].ConnectionString;
        }
-
        [Obsolete("Only for tests")]
        public PaymentRepository(string connectionString)
        {
@@ -26,7 +23,6 @@ namespace webGold.Repository
        {
            return new PaymentRepository();
        }
-
        public IList<Transaction> GetPaymentHistoryBy(string userId)
        {
            const string providerName = "PayPal;";
@@ -41,7 +37,6 @@ namespace webGold.Repository
             }
            return pHistoryCollection;
        }
-
        public double GetAmmountPayPalPorLastDay(string userId, int paymentMethod)
        {
            double ammountPorLastDay = 0;
@@ -62,7 +57,6 @@ namespace webGold.Repository
            }
            return ammountPorLastDay;
        }
-
        public double GetAmmountTransferPorLastDay(string userId)
        {
            double ammountPorLastDay = 0;
@@ -84,7 +78,6 @@ namespace webGold.Repository
            }
            return ammountPorLastDay;
        } 
-
        public void DeletePaymentHistoryBy(IList<string> paymentHistoryIdCollection)
        {
            var queryBuilder = new StringBuilder();
@@ -97,7 +90,6 @@ namespace webGold.Repository
            queryBuilder.Append(" )");
           
        }
-
        public void UpdatePaymenStatus(string userId, int transactionState, int payPalState)
        {
            var queryBuilder = new StringBuilder("START TRANSACTION;");
@@ -109,7 +101,6 @@ namespace webGold.Repository
                db.SetCommand(queryBuilder.ToString()).ExecuteNonQuery();
            }
        }
-
        public void CreatePaymentHistory(Transaction entity)
        {
            using (var db = new MySqlDbManager(conn))
@@ -120,7 +111,6 @@ namespace webGold.Repository
                    , db.CreateParameters(entity)).ExecuteNonQuery();
            }
        }
-
        public Account GetAccountBy(string userId)
        {
            Account account;
@@ -132,7 +122,6 @@ namespace webGold.Repository
            }
            return account;
        }
-
        public void CreateAccount(Account entity)
        {
            using (var db = new MySqlDbManager(conn))
@@ -142,7 +131,6 @@ namespace webGold.Repository
                     VALUES( @Id,  @UserId,  @Wrg)", db.CreateParameters(entity)).ExecuteNonQuery();
            }
        }
-
        public void UpdateAccount(Account entity)
        {
            using (var db = new MySqlDbManager(conn))
@@ -152,7 +140,6 @@ namespace webGold.Repository
                    ExecuteNonQuery();
            }
        }
-
        public void UpdateAccount(double wrgAmount, string userId)
        {
            using (var db = new MySqlDbManager(conn))
@@ -163,28 +150,35 @@ namespace webGold.Repository
                    ExecuteNonQuery();
            }
        }
-
        public void CreatePayPalTransaction(PayPal payPalEntity, Transaction transactionEntity)
        {
            using (var db = new MySqlDbManager(conn))
            {
-               db.BeginTransaction();
+              
                db.SetCommand(@"INSERT INTO `dev_wrio`.`PayPal`(`Id`,`InternalPaymentId`,`Intent`,`PayerId`,`State`)
                                VALUES (@Id,@InternalPaymentId,@Intent,@PayerId,@State);",
-                   db.CreateParameters(payPalEntity));
-               db.SetCommand(@"INSERT INTO Transaction 
-                              (Id,UserId,CreationTime,UpdateTime,Amount,Currency,Fee,Wrg,PaymentProviderId,ProviderName,State,PaymentMethod,TransactionType,PaymentType)
+                   db.CreateParameters(payPalEntity)).ExecuteNonQuery();
+               db.SetCommand(@"INSERT INTO `dev_wrio`.`Transaction` 
+                              (`Id`,`UserId`,`CreationTime`,`UpdateTime`,`Amount`,`Currency`,`Fee`,`Wrg`,`PaymentProviderId`,`ProviderName`,`State`,`PaymentMethod`,`TransactionType`,`PaymentType`)
                     VALUES(@Id,@UserId,@CreationTime,@UpdateTime,@Amount,@Currency,@Fee,@Wrg,@PaymentProviderId,@ProviderName,@State,@PaymentMethod,@TransactionType,@PaymentType)"
-                   , db.CreateParameters(transactionEntity));              
-               db.CommitTransaction();
+                   , db.CreateParameters(transactionEntity)).ExecuteNonQuery();              
+               
            }
        }
-
-       public void UpdateTransaction(Transaction transaction)
+       public void UpdateTransactionAmount(Transaction transaction)
         {
             using (var db = new MySqlDbManager(conn))
             {
-                db.Update(transaction);
+                try
+                {
+                    db.SetCommand(string.Format("UPDATE Transaction SET Amount = @Amount WHERE Id =@Id;"), db.CreateParameters(transaction))
+              .ExecuteNonQuery();
+                }
+                catch (Exception e)
+                {
+                    
+                }
+               
             }
         }
        public bool UpdatePayPal(PayPal payPal)
@@ -197,8 +191,7 @@ namespace webGold.Repository
            }
            return false;
        }
-
-        public void UpdatePayPalTransaction(PayPal payPal)
+       public void UpdatePayPalTransaction(PayPal payPal)
        {
            using (var db = new MySqlDbManager(conn))
            {
@@ -212,7 +205,6 @@ namespace webGold.Repository
                 .ExecuteNonQuery();
            }
        }
-
        public PayPal GetPayPalBy(string token)
        {
            PayPal payPal;
@@ -224,7 +216,6 @@ namespace webGold.Repository
            }
            return payPal;
        }
-
        public void DeletPayPalTransactionBy(string id)
        {
            var queryBuilder = new StringBuilder("START TRANSACTION;");
@@ -237,7 +228,6 @@ namespace webGold.Repository
                db.SetCommand(queryBuilder.ToString()).ExecuteNonQuery();
            }
        }
-
        public Transaction GetLastTransaction(string userId)
        {
            var queryBuilder = new StringBuilder("SELECT * FROM `dev_wrio`.`Transaction` ");
@@ -257,7 +247,6 @@ namespace webGold.Repository
            }
            return paymentHistory;
        }
-
         public Transaction GetTransactionBy(string payPalId)
         {
             Transaction trEntity = null;
@@ -274,6 +263,57 @@ namespace webGold.Repository
                 }
             }
             return trEntity;
+        }
+        public void CreateTransfer(Transfer transferEntity,Transaction transactionEntity)
+        {
+            using (var db = new MySqlDbManager(conn))
+            {
+                try
+                {
+                    db.SetCommand(@"INSERT INTO `dev_wrio`.`Transfer`(`Id`,`PayerId`,`RecipientId`,`State`)
+                               VALUES (@Id,@PayerId,@RecipientId,@State);",
+                   db.CreateParameters(transferEntity)).ExecuteNonQuery();
+                    db.SetCommand(@"INSERT INTO `dev_wrio`.`Transaction` 
+                              (`Id`,`UserId`,`CreationTime`,`UpdateTime`,`Amount`,`Currency`,`Fee`,`Wrg`,`PaymentProviderId`,`ProviderName`,`State`,`PaymentMethod`,`TransactionType`,`PaymentType`)
+                    VALUES(@Id,@UserId,@CreationTime,@UpdateTime,@Amount,@Currency,@Fee,@Wrg,@PaymentProviderId,@ProviderName,@State,@PaymentMethod,@TransactionType,@PaymentType)"
+                   , db.CreateParameters(transactionEntity)).ExecuteNonQuery();    
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(e.Message);
+                }
+                
+            }
+        }
+        public void UpdateTransferStatus(Transfer entity)
+        {
+            using (var db = new MySqlDbManager(conn))
+            {
+                try
+                {
+                    db.SetCommand("UPDATE Transfer SET State = @State WHERE Id = @Id;", db.CreateParameters(entity))
+                    .ExecuteNonQuery();
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(e.Message);
+                }
+            }
+        }
+        public void DeleteTransferBy(string id)
+        {
+            using (var db = new MySqlDbManager(conn))
+            {
+                try
+                {
+                    db.SetCommand(string.Format("DELETE FROM Transfer WHERE Id = '{0}';", id))
+                    .ExecuteNonQuery();
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(e.Message);
+                }
+            }
         }
     }
 }
