@@ -68,12 +68,12 @@ namespace webGold.Business.PayPal
            }
            if (isPaid)
            {
-           transactionEntity.UpdateTime = DateTime.UtcNow;
-           transactionEntity.State = (int)TransactionState.Complete;
-           transactionEntity.Fee = Converter.ParseToDouble(paymentInfoType.FeeAmount.value);        
-           payPal.PayerId = payerId;
-           payPal.State = (int)TransactionState.Complete;
-           repository.UpdatePayPal(payPal);
+               transactionEntity.UpdateTime = DateTime.UtcNow;
+               transactionEntity.State = (int)TransactionState.Complete;
+               transactionEntity.Fee = Converter.ParseToDouble(paymentInfoType.FeeAmount.value);        
+               payPal.PayerId = payerId;
+               payPal.State = (int)TransactionState.Complete;
+               repository.UpdatePayPal(payPal);
                Deposit(transactionEntity, repository);
            }
            model.IsSucces = true;
@@ -123,7 +123,7 @@ namespace webGold.Business.PayPal
        public static WithdrawModel PayPalWithdraw(WithdrawModel model)
        {
            var repository = RepositoryHelper.Initialize();
-           double amountUSD = Converter.ParseToDouble(model.USDAmount);
+           double amountUSD = model.USD;
           
            if (amountUSD > 100)
            {
@@ -158,19 +158,20 @@ namespace webGold.Business.PayPal
            var accountEntity = AccountManager.GetAccountBy(model.UserId);
            var gService = new GoldenStandartConverter();
            var withdrawWRGAmount = gService.ConvertFromUsdToGld(amountUSD);
+           model.WRG = withdrawWRGAmount;
+           model.WRGAmount = AmountConverter.ToWRGAmountStr(Convert.ToInt64(withdrawWRGAmount));
            if (accountEntity.Wrg < withdrawWRGAmount)
            {
                model.IsTransferCanseled = true;
                model.ErrorType = Model.ErrorType.haventMoney.ToString();
                return model;
            }
-           string receiverInfoType = string.Empty;
-           if (!string.IsNullOrEmpty(model.Email))
+           if (string.IsNullOrEmpty(model.Email))
            {
-               receiverInfoType = ReceiverInfoCodeType.EMAILADDRESS.ToString();
+               model.IsTransferCanseled = true;
+               model.ErrorType = Model.ErrorType.incorrectEmail.ToString();
+               return model;
            }
-           string email = model.Email;
-
            var transferEntity = new Transfer()
                                 {
                                     Id = Guid.NewGuid().ToString(),

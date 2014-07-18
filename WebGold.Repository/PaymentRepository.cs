@@ -62,19 +62,27 @@ namespace webGold.Repository
            double ammountPorLastDay = 0;
            using (var context = new MySqlDbManager(conn))
            {
-               var dt =
-                   context.SetCommand(
-                       string.Format(
-                           "SELECT sum(Amount) FROM Transaction WHERE UserId = '{0}' and PaymentType = 2 and Date >= ( CURDATE() - INTERVAL 1 DAY )",
-                           userId)).ExecuteDataTable();
-               if (dt != null)
+               try
                {
-                   if (dt.Rows.Count != 0)
+                   var dt =
+                       context.SetCommand(
+                           string.Format(
+                               "SELECT sum(Amount) FROM Transaction WHERE UserId = '{0}' and PaymentType = 3 and UpdateTime >= ( CURDATE() - INTERVAL 1 DAY )",
+                               userId)).ExecuteDataTable();
+                   if (dt != null)
                    {
+                       if (dt.Rows.Count != 0)
+                       {
 
-                       ammountPorLastDay = dt.Rows[0].ItemArray[0] is double ? (double) dt.Rows[0].ItemArray[0] : 0;
+                           ammountPorLastDay = dt.Rows[0].ItemArray[0] is double ? (double) dt.Rows[0].ItemArray[0] : 0;
+                       }
                    }
                }
+               catch (Exception e)
+               {
+                   throw new Exception(e.Message);
+               }
+               
            }
            return ammountPorLastDay;
        } 
@@ -171,7 +179,7 @@ namespace webGold.Repository
             {
                 try
                 {
-                    db.SetCommand(string.Format("UPDATE Transaction SET Amount = @Amount WHERE Id =@Id;"), db.CreateParameters(transaction))
+                    db.SetCommand(string.Format("UPDATE Transaction SET Amount = @Amount, State=@State, Fee=@Fee  WHERE Id =@Id;"), db.CreateParameters(transaction))
               .ExecuteNonQuery();
                 }
                 catch (Exception e)
@@ -270,11 +278,11 @@ namespace webGold.Repository
             {
                 try
                 {
-                    db.SetCommand(@"INSERT INTO `dev_wrio`.`Transfer`(`Id`,`PayerId`,`RecipientId`,`State`)
+                    db.SetCommand(@"INSERT INTO Transfer(Id,PayerId,RecipientId,State)
                                VALUES (@Id,@PayerId,@RecipientId,@State);",
                    db.CreateParameters(transferEntity)).ExecuteNonQuery();
-                    db.SetCommand(@"INSERT INTO `dev_wrio`.`Transaction` 
-                              (`Id`,`UserId`,`CreationTime`,`UpdateTime`,`Amount`,`Currency`,`Fee`,`Wrg`,`PaymentProviderId`,`ProviderName`,`State`,`PaymentMethod`,`TransactionType`,`PaymentType`)
+                    db.SetCommand(@"INSERT INTO Transaction 
+                              (Id,UserId,CreationTime,UpdateTime,Amount,Currency,Fee,Wrg,PaymentProviderId,ProviderName,State,PaymentMethod,TransactionType,PaymentType)
                     VALUES(@Id,@UserId,@CreationTime,@UpdateTime,@Amount,@Currency,@Fee,@Wrg,@PaymentProviderId,@ProviderName,@State,@PaymentMethod,@TransactionType,@PaymentType)"
                    , db.CreateParameters(transactionEntity)).ExecuteNonQuery();    
                 }

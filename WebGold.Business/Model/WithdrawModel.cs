@@ -17,6 +17,8 @@ namespace webGold.Business.Model
         public bool IsTransferCanseled { get; set; }
         public string ErrorType { get; set; }
         public string ErrorMessage { get; set; }
+        public double USD { get; set; }
+        public double WRG { get; set; } 
     }
 
     public enum ErrorType
