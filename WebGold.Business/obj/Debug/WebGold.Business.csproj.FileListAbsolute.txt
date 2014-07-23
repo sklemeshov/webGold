@@ -1,5 +1,7 @@
 c:\---GitHub---\WRIO\Dlls\webGold.Business.dll
 c:\---GitHub---\WRIO\Dlls\webGold.Business.pdb
-c:\---GitHub---\webGold-WRIO-App\WebGold.Business\obj\Debug\webGold.Business.csprojResolveAssemblyReference.cache
-c:\---GitHub---\webGold-WRIO-App\WebGold.Business\obj\Debug\webGold.Business.dll
-c:\---GitHub---\webGold-WRIO-App\WebGold.Business\obj\Debug\webGold.Business.pdb
+c:\---GitHub---\webGold-WRIO-App\webGold.Business\obj\Debug\webGold.Business.csprojResolveAssemblyReference.cache
+c:\---GitHub---\webGold-WRIO-App\webGold.Business\obj\Debug\webGold.Business.dll
+c:\---GitHub---\webGold-WRIO-App\webGold.Business\obj\Debug\webGold.Business.pdb
+c:\---GitHub---\webRunes-WRIO-Hub\Dlls\webGold.Business.dll
+c:\---GitHub---\webRunes-WRIO-Hub\Dlls\webGold.Business.pdb

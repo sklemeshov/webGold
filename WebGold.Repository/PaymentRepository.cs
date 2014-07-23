@@ -25,14 +25,14 @@ namespace webGold.Repository
        }
        public IList<Transaction> GetPaymentHistoryBy(string userId)
        {
-           const string providerName = "PayPal;";
+           string providerName = "PayPal";
            IList<Transaction> pHistoryCollection;
            using (var context = new MySqlDbManager(conn))
             {
                 var queryBuilder = new StringBuilder("SELECT * FROM dev_wrio.Transaction AS tr ");
                 queryBuilder.Append("INNER JOIN dev_wrio.PayPal AS pp ON tr.PaymentProviderId = pp.Id ");
                 queryBuilder.Append("INNER JOIN dev_wrio.UserAccount AS ua ON tr.UserId = ua.Id ");
-                queryBuilder.AppendFormat(" WHERE UserId = '{0}' AND tr.ProviderName = '{1}';", userId, providerName);
+                queryBuilder.AppendFormat(" WHERE UserId = '{0}' AND tr.ProviderName = '{1}'  ;", userId, providerName);
                 pHistoryCollection = context.SetCommand(queryBuilder.ToString()).ExecuteList<Transaction>();
             }
            return pHistoryCollection;

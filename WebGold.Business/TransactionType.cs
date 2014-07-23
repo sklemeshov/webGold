@@ -2,6 +2,9 @@
 {
     public enum TransactionType
     {
-        Sent =1
+        Sent = 1,
+        Purchase = 2,
+        Withdraw = 3,
+        Received = 4
     }
 }

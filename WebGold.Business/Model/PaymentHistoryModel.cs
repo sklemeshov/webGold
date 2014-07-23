@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Threading;
+using webGold.Business.TypeConverter;
 using webGold.Repository.Entity;
 
 namespace webGold.Business.Model
@@ -9,32 +10,40 @@ namespace webGold.Business.Model
     {
        public PaymentHistoryModel() { }
        public PaymentHistoryModel(Transaction entity) {
-           Thread.CurrentThread.CurrentCulture = new CultureInfo("ru-RU");
+           Init(entity);
+       }
+
+       private void Init(Transaction entity)
+       {
            var gsService = new GoldenStandartConverter();
-           var usdAmount = Math.Round(entity.Amount, 2);
-           Usd = usdAmount.ToString("N", CultureInfo.CreateSpecificCulture("en-US"));
-           var gsAmount = Convert.ToInt64(gsService.ConvertFromUsdToGld(entity.Amount));
-          
+           var usdAmount = gsService.ConvertFromGldToUsd(entity.Wrg);
+           var _USD = Math.Round(usdAmount, 2);
+           USDstr = AmountConverter.ToUSDAmountStr(_USD);
+           var _WRG = Convert.ToInt64(entity.Wrg);
+           WRGstr = AmountConverter.ToWRGAmountStr(_WRG);
            var paymentMethod = Convert.ToInt16(entity.PaymentMethod);
-           if (paymentMethod == (int)PaymentMethod.Credit)
-           {
-               Wrg = string.Format("+{0}", String.Format(CultureInfo.InvariantCulture, "{0:0 000}", gsAmount));
-           }
-           else
-           {
-               Wrg = string.Format("-{0}", String.Format(CultureInfo.InvariantCulture, "{0:0 000}", gsAmount));
-           }
-           Name = entity.TransactionType.ToString();
+           WRGstr = string.Format(paymentMethod == (int)PaymentMethod.Credit ? "+{0}" : "-{0}", WRGstr);
            Date = entity.CreationTime != null ? entity.CreationTime.ToString("ddd, MMMM dd, yyyy H:mm") : string.Empty;
-           Status = entity.State.ToString();
-           //Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
+           Status = ConvertValue(new StatusConverter<StatusHelper>(new StatusHelper(entity.State)));
+           var tHelperData = new TransactionNameHelper()
+                             {
+                                 Email = entity.Email,
+                                 Type = (TransactionType)entity.TransactionType
+                             };
+           Name = ConvertValue(new TransactionNameConverter<TransactionNameHelper>(tHelperData));
+           Direction = ConvertValue(new DirectionNameConverter<TransactionNameHelper>(tHelperData));
+       }
+
+       private string ConvertValue(ITypeConverter converter)
+       {
+          return converter.Convert();
        }
 
        public string Direction { get; set; }
        public string Name { get; set; }
        public string Date { get; set; }
        public string Status { get; set; }
-       public string Wrg { get; set; }
-       public string Usd { get; set; }
+       public string WRGstr { get; set; }
+       public string USDstr { get; set; }
     }
 }

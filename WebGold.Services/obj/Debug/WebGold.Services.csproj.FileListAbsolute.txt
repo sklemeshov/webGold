@@ -1,5 +1,7 @@
 c:\---GitHub---\WRIO\Dlls\webGold.Services.dll
 c:\---GitHub---\WRIO\Dlls\webGold.Services.pdb
-c:\---GitHub---\webGold-WRIO-App\WebGold.Services\obj\Debug\webGold.Services.csprojResolveAssemblyReference.cache
-c:\---GitHub---\webGold-WRIO-App\WebGold.Services\obj\Debug\webGold.Services.dll
-c:\---GitHub---\webGold-WRIO-App\WebGold.Services\obj\Debug\webGold.Services.pdb
+c:\---GitHub---\webGold-WRIO-App\webGold.Services\obj\Debug\webGold.Services.csprojResolveAssemblyReference.cache
+c:\---GitHub---\webGold-WRIO-App\webGold.Services\obj\Debug\webGold.Services.dll
+c:\---GitHub---\webGold-WRIO-App\webGold.Services\obj\Debug\webGold.Services.pdb
+c:\---GitHub---\webRunes-WRIO-Hub\Dlls\webGold.Services.dll
+c:\---GitHub---\webRunes-WRIO-Hub\Dlls\webGold.Services.pdb
